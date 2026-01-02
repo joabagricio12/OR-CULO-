@@ -55,18 +55,19 @@ const App: React.FC = () => {
         const msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'pt-BR';
         
-        // Tenta encontrar uma voz feminina suave
+        // Priorizando uma voz feminina suave e clara
         const voices = window.speechSynthesis.getVoices();
+        const preferredVoices = ['Google português do Brasil', 'Maria', 'Luciana', 'Microsoft Maria'];
         const femaleVoice = voices.find(v => 
-            v.lang.includes('pt-BR') && 
-            (v.name.includes('Maria') || v.name.includes('Luciana') || v.name.includes('Google') || v.name.includes('Female'))
+            preferredVoices.some(pv => v.name.includes(pv)) || 
+            (v.lang.includes('pt-BR') && (v.name.includes('Female') || v.name.includes('Feminino')))
         );
         
         if (femaleVoice) msg.voice = femaleVoice;
         
-        msg.rate = 0.88; // Levemente mais lenta para ser suave
-        msg.pitch = 1.05; // Levemente mais alta para feminilidade clara
-        msg.volume = 0.9;
+        msg.rate = 0.92; // Suavidade e clareza
+        msg.pitch = 1.05; // Timbre levemente feminino e refinado
+        msg.volume = 1;
         
         window.speechSynthesis.speak(msg);
     };
@@ -74,7 +75,7 @@ const App: React.FC = () => {
     const handleGenerate = () => {
         if (isLoading || isLocked) return;
         setIsLoading(true);
-        speak("Iniciando varredura universal. Acessando o vácuo quântico para manifestar sua milhar.");
+        speak("Manifestando a matriz. Estou colapsando as dimensões de probabilidade para encontrar sua milhar.");
         
         const parsed = parseModules([m1, m2, m3]);
         setTimeout(() => {
@@ -85,7 +86,7 @@ const App: React.FC = () => {
             setAnalysisData(res.analysis);
             setIsLoading(false);
             setIsLocked(true); 
-            speak("O colapso de onda está completo. Os padrões agora são realidade.");
+            speak("Onda manifestada com sucesso. Os padrões foram isolados.");
         }, 4500);
     };
 
@@ -94,14 +95,14 @@ const App: React.FC = () => {
         const numericSet = v.map(line => line.split('').map(Number));
         setInputHistory(prev => [numericSet, ...prev].slice(0, 250));
         setIsLocked(false);
-        speak("Frequência de entrada sincronizada. O oráculo está recalibrado.");
+        speak("Dados sincronizados. Minha percepção da matriz foi atualizada.");
     };
 
     const toggleVoice = () => {
         const newVal = !settings.voiceEnabled;
         setSettings({...settings, voiceEnabled: newVal});
         if (newVal) {
-            speak("Conexão vocal estabelecida. Estou pronta.");
+            speak("Voz ativa. Sinta a minha presença.");
         } else {
             window.speechSynthesis.cancel();
         }
@@ -119,13 +120,13 @@ const App: React.FC = () => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16"></div>
                 <div className="flex justify-between mb-2.5 items-end">
                     <div className="flex flex-col">
-                        <span className="text-[6px] text-slate-500 font-black uppercase tracking-[0.3em]">Nível de Ruído Quântico</span>
-                        <span className="text-[11px] text-amber-500 font-black">ENTROPIA: {(settings.entropy * 100).toFixed(0)}%</span>
+                        <span className="text-[6px] text-slate-500 font-black uppercase tracking-[0.3em]">Ruído Quântico</span>
+                        <span className="text-[11px] text-amber-500 font-black uppercase tracking-widest">Entropia: {(settings.entropy * 100).toFixed(0)}%</span>
                     </div>
                     <button 
                         onClick={toggleVoice}
-                        className={`p-2.5 rounded-2xl border transition-all shadow-lg active:scale-90 ${settings.voiceEnabled ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}
-                        title={settings.voiceEnabled ? "Silenciar Oráculo" : "Ouvir Oráculo"}
+                        className={`p-3 rounded-2xl border transition-all shadow-lg active:scale-90 ${settings.voiceEnabled ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}
+                        title={settings.voiceEnabled ? "Silenciar Oráculo" : "Ativar Voz"}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path className={settings.voiceEnabled ? "opacity-100" : "opacity-0"} d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </button>
@@ -136,10 +137,10 @@ const App: React.FC = () => {
             <div className="module-grid shrink-0">
                 <ModuleInput id="1" title="ALPHA-CORE" values={m1} setValues={setM1} readOnly />
                 <ModuleInput id="2" title="BETA-SYNC" values={m2} setValues={setM2} readOnly />
-                <ModuleInput id="3" title="ONDA-REAL" values={m3} setValues={(v) => {setM3(v); setIsLocked(false);}} onPaste={handlePasteM3} onClear={() => {setM3(Array(7).fill("")); speak("Minha memória de curto prazo foi limpa.");}} />
+                <ModuleInput id="3" title="ONDA-REAL" values={m3} setValues={(v) => {setM3(v); setIsLocked(false);}} onPaste={handlePasteM3} onClear={() => {setM3(Array(7).fill("")); speak("Memória de curto prazo limpa. Estou pronta para novos dados.");}} />
             </div>
 
-            <button onClick={handleGenerate} disabled={isLoading || isLocked} className={`w-full py-6 font-black rounded-[2.5rem] uppercase tracking-[0.3em] border-2 transition-all text-[10px] relative overflow-hidden group shrink-0 ${isLoading || isLocked ? 'bg-slate-900/50 border-slate-800 text-slate-700' : 'bg-slate-950 border-amber-600 text-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.2)] active:scale-95'}`}>
+            <button onClick={handleGenerate} disabled={isLoading || isLocked} className={`w-full py-6 font-black rounded-[2.5rem] uppercase tracking-[0.3em] border-2 transition-all text-[11px] relative overflow-hidden group shrink-0 ${isLoading || isLocked ? 'bg-slate-900/50 border-slate-800 text-slate-700' : 'bg-slate-950 border-amber-600 text-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.25)] active:scale-95'}`}>
                 <div className="absolute inset-0 bg-amber-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
                 {isLoading ? 'ANALISANDO MATRIZ...' : isLocked ? 'ONDA MANIFESTADA' : 'INICIAR COLAPSO'}
             </button>
