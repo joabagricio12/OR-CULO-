@@ -9,13 +9,13 @@
     -ms-overflow-style: none;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
-    /* Zoom reajustado para o padrão da v25.0 */
-    font-size: 110%; 
+    /* Zoom equilibrado v25.0 Pro */
+    font-size: 120%; 
   }
 }
 
 @media (min-width: 1024px) {
-  html { font-size: 120%; }
+  html { font-size: 125%; }
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -48,4 +48,9 @@
     background: url('https://grainy-gradients.vercel.app/noise.svg');
     opacity: 0.04;
     pointer-events: none;
+}
+
+/* Janelas de ajuste maiores para evitar erros */
+.adjustment-popover {
+    @apply w-[220px] p-5 rounded-[2rem] bg-slate-950 border border-amber-500 shadow-[0_0_60px_rgba(0,0,0,0.9)];
 }
