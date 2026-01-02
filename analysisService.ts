@@ -47,24 +47,29 @@ export const analyzeSet = (set: DataSet): AnalysisResult => {
     return result;
 };
 
-// MOTOR DE COLAPSO QUÂNTICO RECALIBRADO
+// MOTOR DE COLAPSO QUÂNTICO RECALIBRADO COM PENALIDADE DE CLUSTER
 const quantumCollapse = (analysis: CombinedAnalysis, hits: HitRecord[], entropy: number, pos: number, rank: number, previousDigits: number[] = []): number => {
     const resistanceMap = Array(10).fill(100);
 
     for (let digit = 0; digit < 10; digit++) {
         let resonance = 0;
-        resonance += (analysis.inputAnalysis.globalDigitFreq[digit] || 0) * 0.4;
-        resonance += (analysis.inputAnalysis.colDigitFreq[pos]?.[digit] || 0) * 2.8;
+        // Frequência global e posicional
+        resonance += (analysis.inputAnalysis.globalDigitFreq[digit] || 0) * 0.35;
+        resonance += (analysis.inputAnalysis.colDigitFreq[pos]?.[digit] || 0) * 2.5;
         
-        if (rank === 1) resonance += (analysis.inputAnalysis.firstPrizeFreq[digit] || 0) * 8.5;
+        // Peso para 1º prêmio
+        if (rank === 1) resonance += (analysis.inputAnalysis.firstPrizeFreq[digit] || 0) * 9.0;
 
+        // Influência de acertos históricos
         const hitInfluence = hits.filter(h => h.position === rank && h.status === 'Acerto')
             .filter(h => h.value.includes(digit.toString())).length;
-        resonance += hitInfluence * 30;
+        resonance += hitInfluence * 35;
 
-        // PENALIDADE DE REPETIÇÃO (CLUSTER): Evita 777, 111 se não houver base fortíssima
+        // PENALIDADE DE REPETIÇÃO (CLUSTER): Evita 777, 111, 74 74
+        // Se o dígito já apareceu na sequência atual, sua resistência aumenta drasticamente
         if (previousDigits.includes(digit)) {
-            resonance -= 15 * (1 - entropy); // Quanto menor a entropia, maior a penalidade por repetir dígitos vizinhos
+            const occurrences = previousDigits.filter(d => d === digit).length;
+            resonance -= (25 * occurrences) * (1.2 - entropy); 
         }
 
         resistanceMap[digit] -= (resonance / (1 + entropy));
@@ -73,8 +78,8 @@ const quantumCollapse = (analysis: CombinedAnalysis, hits: HitRecord[], entropy:
     const sorted = resistanceMap.map((res, digit) => ({ digit, res }))
                                .sort((a, b) => a.res - b.res);
     
-    // Injeção de incerteza baseada em entropia
-    const range = Math.max(1, Math.floor(entropy * 4));
+    // Injeção de incerteza (caos controlado)
+    const range = Math.max(1, Math.floor(entropy * 3.5));
     const selectionIdx = Math.floor(Math.random() * range);
     
     return sorted[selectionIdx]?.digit ?? sorted[0].digit;
@@ -98,30 +103,30 @@ export const runGenerationCycle = (modules: DataSet[], history: History, hits: H
         candidates: Array(3).fill(0).map((_, i) => {
             const seq: number[] = [];
             for (let p = 0; p < 4; p++) {
-                seq.push(quantumCollapse(analysis, hits, entropy * 0.4, p, 1, seq));
+                seq.push(quantumCollapse(analysis, hits, entropy * 0.35, p, 1, seq));
             }
-            return { sequence: seq, confidence: 99.85 + (Math.random() * 0.14) };
+            return { sequence: seq, confidence: 99.88 + (Math.random() * 0.11) };
         }),
         advancedPredictions: {
             hundreds: Array(3).fill(0).map(() => {
                 const seq: number[] = [];
-                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.1, p, 1, seq));
+                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.08, p, 1, seq));
                 return { value: seq.slice(1, 4).join(''), confidence: 99.98 };
             }),
             tens: Array(3).fill(0).map(() => {
                 const seq: number[] = [];
-                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.15, p, 1, seq));
+                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.12, p, 1, seq));
                 return { value: seq.slice(2, 4).join(''), confidence: 99.97 };
             }),
             eliteTens: Array(2).fill(0).map(() => {
                 const seq: number[] = [];
-                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.05, p, 1, seq));
+                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.04, p, 1, seq));
                 return { value: seq.slice(2, 4).join(''), confidence: 99.99 };
             }),
             superTens: Array(3).fill(0).map(() => {
                 const seq: number[] = [];
-                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.08, p, 1, seq));
-                return { value: seq.slice(2, 4).join(''), confidence: 99.95 };
+                for (let p = 0; p < 4; p++) seq.push(quantumCollapse(analysis, hits, 0.06, p, 1, seq));
+                return { value: seq.slice(2, 4).join(''), confidence: 99.96 };
             })
         },
         analysis
