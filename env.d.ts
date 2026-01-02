@@ -1,12 +1,9 @@
-interface ProcessEnv {
-  API_KEY: string;
-  [key: string]: string | undefined;
+declare namespace NodeJS {
+  interface ProcessEnv {
+    API_KEY: string;
+    [key: string]: string | undefined;
+  }
 }
 
-interface Process {
-  env: ProcessEnv;
-}
-
-declare var process: Process;
-
+// Isso transforma o arquivo em um módulo e evita erros de escopo global
 export {};
