@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { DataSet, Candidate, AdvancedPredictions, HitRecord, CombinedAnalysis, RectificationRecord, AppSettings } from './types';
 import Header from './Header';
 import ModuleInput from './ModuleInput';
@@ -48,34 +47,98 @@ const App: React.FC = () => {
         localStorage.setItem('dh_v25_locked', isLocked.toString());
     }, [inputHistory, hitsHistory, rectificationHistory, settings, m1, m2, m3, generatedResult, candidates, advancedPredictions, analysisData, isLocked]);
 
-    const speak = (text: string) => {
+    const speak = useCallback((text: string) => {
         if (!settings.voiceEnabled) return;
         window.speechSynthesis.cancel();
         
         const msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'pt-BR';
         
-        // Priorizando uma voz feminina suave e clara
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoices = ['Google português do Brasil', 'Maria', 'Luciana', 'Microsoft Maria'];
+        // Voz Feminina Suave
         const femaleVoice = voices.find(v => 
-            preferredVoices.some(pv => v.name.includes(pv)) || 
-            (v.lang.includes('pt-BR') && (v.name.includes('Female') || v.name.includes('Feminino')))
+            v.lang.includes('pt-BR') && (v.name.includes('Maria') || v.name.includes('Francisca') || v.name.includes('Google português do Brasil'))
         );
         
         if (femaleVoice) msg.voice = femaleVoice;
         
-        msg.rate = 0.92; // Suavidade e clareza
-        msg.pitch = 1.05; // Timbre levemente feminino e refinado
+        msg.rate = 0.95; // Velocidade natural
+        msg.pitch = 1.15; // Tom suavemente agudo (feminino)
         msg.volume = 1;
         
         window.speechSynthesis.speak(msg);
+    }, [settings.voiceEnabled]);
+
+    const processAutoCorrection = (actualValues: string[]) => {
+        if (!generatedResult) return;
+
+        const newHits: HitRecord[] = [];
+        const newRects: RectificationRecord[] = [];
+
+        actualValues.forEach((act, idx) => {
+            if (!act || act.length < 3) return;
+            
+            const gen = generatedResult[idx].join('');
+            const type = idx === 6 ? 'Centena' : 'Milhar';
+            const rankLabel = idx === 0 ? '1º PRÊMIO' : `${idx + 1}º PRÊMIO`;
+
+            // Verificação de Acerto
+            if (gen === act) {
+                newHits.push({
+                    id: crypto.randomUUID(),
+                    value: gen,
+                    type,
+                    position: idx + 1,
+                    status: 'Acerto',
+                    timestamp: Date.now()
+                });
+            } else {
+                // Quase Acerto (3 de 4 dígitos ou 2 de 3)
+                let matches = 0;
+                const minMatch = type === 'Milhar' ? 3 : 2;
+                for (let i = 0; i < act.length; i++) {
+                    if (gen[i] === act[i]) matches++;
+                }
+
+                if (matches >= minMatch) {
+                    newHits.push({
+                        id: crypto.randomUUID(),
+                        value: gen,
+                        type,
+                        position: idx + 1,
+                        status: 'Quase Acerto',
+                        timestamp: Date.now()
+                    });
+                }
+            }
+
+            // Registrar retificação para aprendizado
+            newRects.push({
+                id: crypto.randomUUID(),
+                generated: gen,
+                actual: act,
+                type,
+                rankLabel,
+                timestamp: Date.now()
+            });
+        });
+
+        if (newHits.length > 0) setHitsHistory(prev => [...newHits, ...prev]);
+        if (newRects.length > 0) setRectificationHistory(prev => [...newRects, ...prev]);
+
+        if (newHits.some(h => h.status === 'Acerto')) {
+            speak("Acerto absoluto detectado. A matriz de probabilidade colapsou perfeitamente.");
+        } else if (newHits.some(h => h.status === 'Quase Acerto')) {
+            speak("Quase acerto detectado. Estamos muito perto da frequência correta.");
+        } else {
+            speak("Resultados inseridos. Meus sensores foram recalibrados com sucesso.");
+        }
     };
 
     const handleGenerate = () => {
         if (isLoading || isLocked) return;
         setIsLoading(true);
-        speak("Manifestando a matriz. Estou colapsando as dimensões de probabilidade para encontrar sua milhar.");
+        speak("Iniciando colapso de onda. Analisando as correntes de entropia.");
         
         const parsed = parseModules([m1, m2, m3]);
         setTimeout(() => {
@@ -86,86 +149,67 @@ const App: React.FC = () => {
             setAnalysisData(res.analysis);
             setIsLoading(false);
             setIsLocked(true); 
-            speak("Onda manifestada com sucesso. Os padrões foram isolados.");
+            speak("Matriz prevista manifestada.");
         }, 4500);
     };
 
     const handlePasteM3 = (v: string[]) => {
+        processAutoCorrection(v);
         setM1(m2); setM2(m3); setM3(v);
         const numericSet = v.map(line => line.split('').map(Number));
-        setInputHistory(prev => [numericSet, ...prev].slice(0, 250));
+        setInputHistory(prev => [numericSet, ...prev].slice(0, 300));
         setIsLocked(false);
-        speak("Dados sincronizados. Minha percepção da matriz foi atualizada.");
-    };
-
-    const toggleVoice = () => {
-        const newVal = !settings.voiceEnabled;
-        setSettings({...settings, voiceEnabled: newVal});
-        if (newVal) {
-            speak("Voz ativa. Sinta a minha presença.");
-        } else {
-            window.speechSynthesis.cancel();
-        }
     };
 
     return (
-        <div className="min-h-screen bg-[#010409] px-3 pt-2 pb-12 gap-3 text-slate-100 flex flex-col overflow-y-auto no-scrollbar selection:bg-amber-500/30 font-orbitron hologram-noise relative">
+        <div className="min-h-screen bg-[#010409] px-4 pt-4 pb-16 gap-6 text-slate-100 flex flex-col overflow-y-auto no-scrollbar selection:bg-amber-500/30 font-orbitron hologram-noise relative max-w-7xl mx-auto">
             <Header 
                 onOpenHistory={() => setIsHistoryOpen(true)} 
                 onOpenChat={() => setIsChatOpen(true)}
                 isLoading={isLoading} 
             />
             
-            <div className="bg-slate-900/40 p-4 rounded-[2.2rem] border border-amber-500/10 shadow-[inset_0_0_20px_rgba(245,158,11,0.03)] backdrop-blur-3xl oracle-glow relative overflow-hidden shrink-0">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16"></div>
-                <div className="flex justify-between mb-2.5 items-end">
+            <div className="bg-slate-900/40 p-8 rounded-[3rem] border border-amber-500/10 shadow-2xl backdrop-blur-3xl oracle-glow relative overflow-hidden shrink-0">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-[120px] -mr-32 -mt-32"></div>
+                <div className="flex justify-between mb-6 items-center">
                     <div className="flex flex-col">
-                        <span className="text-[6px] text-slate-500 font-black uppercase tracking-[0.3em]">Ruído Quântico</span>
-                        <span className="text-[11px] text-amber-500 font-black uppercase tracking-widest">Entropia: {(settings.entropy * 100).toFixed(0)}%</span>
+                        <span className="text-[8px] text-slate-500 font-black uppercase tracking-[0.5em]">Entropia Quântica</span>
+                        <span className="text-[16px] text-amber-500 font-black uppercase tracking-widest">Ajuste: {(settings.entropy * 100).toFixed(0)}%</span>
                     </div>
                     <button 
-                        onClick={toggleVoice}
-                        className={`p-3 rounded-2xl border transition-all shadow-lg active:scale-90 ${settings.voiceEnabled ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}
-                        title={settings.voiceEnabled ? "Silenciar Oráculo" : "Ativar Voz"}
+                        onClick={() => setSettings({...settings, voiceEnabled: !settings.voiceEnabled})}
+                        className={`p-5 rounded-[2rem] border transition-all shadow-xl active:scale-90 ${settings.voiceEnabled ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path className={settings.voiceEnabled ? "opacity-100" : "opacity-0"} d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path className={settings.voiceEnabled ? "opacity-100" : "opacity-0"} d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </button>
                 </div>
-                <input type="range" min="0" max="1" step="0.01" value={settings.entropy} onChange={(e) => setSettings({...settings, entropy: parseFloat(e.target.value)})} className="w-full accent-amber-500 h-1.5 bg-slate-800 rounded-full cursor-pointer" />
+                <input type="range" min="0" max="1" step="0.01" value={settings.entropy} onChange={(e) => setSettings({...settings, entropy: parseFloat(e.target.value)})} className="w-full accent-amber-500 h-3 bg-slate-800 rounded-full cursor-pointer" />
             </div>
 
             <div className="module-grid shrink-0">
-                <ModuleInput id="1" title="ALPHA-CORE" values={m1} setValues={setM1} readOnly />
-                <ModuleInput id="2" title="BETA-SYNC" values={m2} setValues={setM2} readOnly />
-                <ModuleInput id="3" title="ONDA-REAL" values={m3} setValues={(v) => {setM3(v); setIsLocked(false);}} onPaste={handlePasteM3} onClear={() => {setM3(Array(7).fill("")); speak("Memória de curto prazo limpa. Estou pronta para novos dados.");}} />
+                <ModuleInput id="1" title="CORE-A" values={m1} setValues={setM1} readOnly />
+                <ModuleInput id="2" title="CORE-B" values={m2} setValues={setM2} readOnly />
+                <ModuleInput id="3" title="ONDA-REAL" values={m3} setValues={(v) => {setM3(v); setIsLocked(false);}} onPaste={handlePasteM3} onClear={() => {setM3(Array(7).fill("")); speak("Memória limpa.");}} />
             </div>
 
-            <button onClick={handleGenerate} disabled={isLoading || isLocked} className={`w-full py-6 font-black rounded-[2.5rem] uppercase tracking-[0.3em] border-2 transition-all text-[11px] relative overflow-hidden group shrink-0 ${isLoading || isLocked ? 'bg-slate-900/50 border-slate-800 text-slate-700' : 'bg-slate-950 border-amber-600 text-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.25)] active:scale-95'}`}>
-                <div className="absolute inset-0 bg-amber-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-                {isLoading ? 'ANALISANDO MATRIZ...' : isLocked ? 'ONDA MANIFESTADA' : 'INICIAR COLAPSO'}
+            <button onClick={handleGenerate} disabled={isLoading || isLocked} className={`w-full py-10 font-black rounded-[3.5rem] uppercase tracking-[0.5em] border-2 transition-all text-[14px] relative overflow-hidden group shrink-0 ${isLoading || isLocked ? 'bg-slate-900/50 border-slate-800 text-slate-700' : 'bg-slate-950 border-amber-600 text-amber-500 shadow-[0_0_60px_rgba(245,158,11,0.25)] active:scale-95'}`}>
+                <div className="absolute inset-0 bg-amber-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
+                {isLoading ? 'COLAPSANDO ONDAS...' : isLocked ? 'ONDA MANIFESTADA' : 'INICIAR PREVISÃO'}
             </button>
 
             {isLoading ? <Loader /> : (
-                <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-1000 flex-1">
+                <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 flex-1">
                     <StatisticsDisplay analysis={analysisData} isLoading={isLoading} />
-                    <div className="grid grid-cols-1 gap-4">
-                        <ResultDisplay result={generatedResult} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <AdvancedPredictionDisplay predictions={advancedPredictions} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
-                            <CandidateDisplay candidates={candidates} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
-                        </div>
+                    <ResultDisplay result={generatedResult} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <AdvancedPredictionDisplay predictions={advancedPredictions} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
+                        <CandidateDisplay candidates={candidates} onMarkHit={(v, t, p, s) => setHitsHistory(prev => [{id: crypto.randomUUID(), value: v, type: t, position: p, status: s || 'Acerto', timestamp: Date.now()}, ...prev])} onManualRectify={(g, a, t, l) => setRectificationHistory(prev => [{id: crypto.randomUUID(), generated: g, actual: a, type: t, rankLabel: l, timestamp: Date.now()}, ...prev])} />
                     </div>
                 </div>
             )}
 
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} inputHistory={inputHistory} onClearInputHistory={() => setInputHistory([])} onDeleteInputItem={(i) => setInputHistory(prev => prev.filter((_, idx) => idx !== i))} generatedHistory={[]} onClearGeneratedHistory={() => {}} onDeleteGeneratedItem={() => {}} hitsHistory={hitsHistory} onClearHitsHistory={() => setHitsHistory([])} onDeleteHitItem={(i) => setHitsHistory(prev => prev.filter((_, idx) => idx !== i))} rectificationHistory={rectificationHistory} onClearRectificationHistory={() => setRectificationHistory([])} onDeleteRectificationItem={(i) => setRectificationHistory(prev => prev.filter((_, idx) => idx !== i))} />
-            
-            <ChatModule 
-              isOpen={isChatOpen} 
-              onClose={() => setIsChatOpen(false)} 
-              voiceEnabled={settings.voiceEnabled}
-              onSpeak={speak}
-            />
+            <ChatModule isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} voiceEnabled={settings.voiceEnabled} onSpeak={speak} />
         </div>
     );
 };
